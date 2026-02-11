@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container mt-4" style="background-color: bisque;">
+
+<button class="btn btn-danger float-end" id="logout" style="background-color: red;">Logout</button>
+<h3 style="text-align: center;">Chat Application</h3>
+
+<hr>
+<div style="background-color: rgb(240, 202, 145);">
+    <select id="roomSelect" class="form-select w-25 mb-2">
+        <option value="devops">devops</option>
+        <option value="gaming">gaming</option>
+        <option value="anime">anime</option>
+        <option value="potter">harry potter</option>
+        <option value="styles">harry styles</option>
+    </select>
+
+    <button class="btn btn-primary mb-3 " id="joinBtn" style="background-color: rgb(151, 79, 152);">Join Room</button>
+    <button class="btn btn-secondary mb-3 float-end" id="leaveBtn" style="background-color: red;">Leave Room</button>
+
+    <div id="messages" class="border p-3 mb-2" style="height:300px; overflow-y:scroll; background-color: aliceblue;"></div>
+
+    <div id="typing" class="text-muted"></div>
+
+    <input id="messageInput" class="form-control mb-2" placeholder="Type message...">
+    <button class="btn btn-success form-control" id="sendBtn" style="background-color: rgb(151, 79, 152);">Send</button>
+</div>
+<hr>
+<h5>Private Message</h5>
+
+<input id="privateUser" class="form-control mb-2" placeholder="Enter username to message">
+<input id="privateMessageInput" class="form-control mb-2" placeholder="Private message">
+<button class="btn btn-warning form-control" id="sendPrivateBtn" style="background-color: rgb(164, 88, 165);">Send Private</button>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const socket = io();
+const username = localStorage.getItem("username");
+socket.emit("registerUser", username);
+
+
+if(!username){
+    window.location.href = "login.html";
+}
+
+let currentRoom = "";
+
+document.getElementById("sendPrivateBtn").onclick = () => {
+
+    const toUser = privateUser.value;
+
+    socket.emit("privateMessage", {
+        from_user: username,
+        to_user: toUser,
+        message: privateMessageInput.value
+    });
+
+    privateMessageInput.value = "";
+};
+
+socket.on("privateMessage", (data) => {
+    messages.innerHTML += `
+        <p style="color:red;">
+            <strong>Private from ${data.from_user}</strong>: ${data.message}
+        </p>
+    `;
+});
+
+document.getElementById("joinBtn").onclick = () => {
+    currentRoom = roomSelect.value;
+    socket.emit("joinRoom", currentRoom);
+    messages.innerHTML = "";
+};
+
+document.getElementById("leaveBtn").onclick = () => {
+    socket.emit("leaveRoom");
+    currentRoom = "";
+};
+
+document.getElementById("sendBtn").onclick = () => {
+    if(currentRoom === "") return alert("Join a room first!");
+
+    socket.emit("chatMessage", {
+        from_user: username,
+        room: currentRoom,
+        message: messageInput.value
+    });
+
+    messageInput.value = "";
+};
+
+socket.on("message", (data) => {
+    messages.innerHTML += `<p><strong>${data.from_user}</strong>: ${data.message}</p>`;
+});
+
+messageInput.addEventListener("input", () => {
+    socket.emit("typing", {
+        room: currentRoom,
+        username: username
+    });
+});
+
+socket.on("typing", (user) => {
+    typing.innerHTML = user + " is typing...";
+    setTimeout(() => typing.innerHTML = "", 2000);
+});
+
+document.getElementById("logout").onclick = () => {
+    localStorage.removeItem("username");
+    window.location.href = "login.html";
+};
+
+
+
+</script>
+
+</body>
+</html>
